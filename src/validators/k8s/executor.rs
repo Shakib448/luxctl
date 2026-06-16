@@ -1,0 +1,90 @@
+use k8s_openapi::api::apps::v1::Deployment;
+use k8s_openapi::api::core::v1::Pod;
+use kube::api::{Api, ListParams, Patch, PatchParams};
+use kube::config::{Config, KubeConfigOptions, Kubeconfig};
+use kube::{Client, ResourceExt};
+
+#[derive(Debug)]
+pub struct ExecutorResult {
+    pub exit_code: i32,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+impl ExecutorResult {
+    pub fn success(&self) -> bool {
+        self.exit_code == 0
+    }
+}
+
+pub struct KubernetesExecutor {
+    client: Client,
+    namespace: Option<String>,
+}
+
+impl KubernetesExecutor {
+    pub async fn new(
+        kubeconfig_path: Option<String>,
+        namespace: Option<String>,
+    ) -> Result<Self, kube::Error> {
+        let client = build_client(kubeconfig_path).await?;
+        Ok(Self { client, namespace })
+    }
+
+    fn api<K>(&self) -> Api<K>
+    where
+        K: kube::Resource<Scope = k8s_openapi::NamespaceResourceScope>,
+        K::DynamicType: Default,
+    {
+        match &self.namespace {
+            Some(ns) => Api::namespaced(self.client.clone(), ns),
+            None => Api::default_namespaced(self.client.clone()),
+        }
+    }
+
+    pub async fn list_pods(&self) -> Result<(), kube::Error> {
+        let pods = self.api::<Pod>();
+        println!("Fetching pods...");
+        for pod in pods.list(&ListParams::default()).await? {
+            println!("{}", pod.name_any());
+        }
+        Ok(())
+    }
+
+    pub async fn list_deployments(&self) -> Result<(), kube::Error> {
+        let deployments = self.api::<Deployment>();
+        println!("Fetching deployments...");
+        for d in deployments.list(&ListParams::default()).await? {
+            println!("{}", d.name_any());
+        }
+        Ok(())
+    }
+
+    pub async fn scale(&self, name: &str, replicas: i32) -> Result<(), kube::Error> {
+        let deployments = self.api::<Deployment>();
+
+        let patch = serde_json::json!({
+            "spec": { "replicas": replicas }
+        });
+
+        deployments
+            .patch(name, &PatchParams::default(), &Patch::Merge(&patch))
+            .await?;
+
+        println!("Deployment '{}' scaled to {} replicas", name, replicas);
+        Ok(())
+    }
+}
+
+async fn build_client(kubeconfig_path: Option<String>) -> Result<Client, kube::Error> {
+    match kubeconfig_path {
+        Some(path) => client_from_path(&path).await,
+        None => Client::try_default().await,
+    }
+}
+
+async fn client_from_path(path: &str) -> Result<Client, kube::Error> {
+    let kubeconfig = Kubeconfig::read_from(path)?;
+    let config = Config::from_custom_kubeconfig(kubeconfig, &KubeConfigOptions::default()).await?;
+    Client::try_from(config)
+}

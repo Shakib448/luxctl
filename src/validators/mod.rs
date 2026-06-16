@@ -7,6 +7,7 @@ pub mod factory;
 pub mod file;
 pub mod http;
 pub mod json_response;
+pub mod k8s;
 pub mod parser;
 pub mod port;
 pub mod process;

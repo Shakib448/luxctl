@@ -2,6 +2,7 @@ use clap::{CommandFactory, Parser, Subcommand, ValueHint};
 use clap_complete::{generate, Shell};
 use color_eyre::eyre::Result;
 
+use luxctl::validators::k8s::KubernetesExecutor;
 use luxctl::{
     api::LighthouseAPIClient, auth::TokenAuthenticator, commands, config::Config, greet,
     message::Message, oops, LIGHTHOUSE_URL, VERSION,
@@ -134,6 +135,41 @@ enum Commands {
         #[arg(short = 'e', long, default_value = "expected/output.txt", value_hint = ValueHint::FilePath)]
         expected: String,
     },
+
+    /// A ClI tool for managing Kubernetes clusters
+    #[command(visible_aliases = ["k8s" , "k"])]
+    Kubernetes {
+        /// Sets the path to the kubeconfig file
+        #[arg(short, long, default_value = "")]
+        kubeconfig: String,
+
+        /// Sets the Kubernetes namespace
+        #[arg(short, long, default_value = "default")]
+        namespace: String,
+
+        #[command(subcommand)]
+        action: KubernetesAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum KubernetesAction {
+    /// List all deployments in the specified namespace
+    List,
+
+    /// Scale a specific deployment
+    Scale {
+        /// The name of the deployment to scale
+        #[arg(value_name = "DEPLOYMENT")]
+        deployment: String,
+
+        /// the number of replicas to scale to
+        #[arg(short, long)]
+        replicas: i32,
+    },
+
+    /// List all pods in the specified namespace
+    Pods,
 }
 
 #[derive(Subcommand)]
@@ -400,7 +436,11 @@ async fn main() -> Result<()> {
             TerminalAction::List => {
                 commands::terminal::list().await?;
             }
-            TerminalAction::Start { slug, workspace, lang } => {
+            TerminalAction::Start {
+                slug,
+                workspace,
+                lang,
+            } => {
                 commands::terminal::start(&slug, &workspace, lang.as_deref())?;
             }
             TerminalAction::Run { detailed } => {
@@ -426,7 +466,11 @@ async fn main() -> Result<()> {
             commands::validate::validate_all(all, detailed).await?;
         }
 
-        Commands::Result { project, task, inputs } => {
+        Commands::Result {
+            project,
+            task,
+            inputs,
+        } => {
             commands::result::result(&task, &inputs, project.as_deref()).await?;
         }
 
@@ -470,6 +514,29 @@ async fn main() -> Result<()> {
             expected,
         } => {
             commands::helpers::run(&name, rows, &measurements, &expected)?;
+        }
+
+        Commands::Kubernetes {
+            kubeconfig,
+            namespace,
+            action,
+        } => {
+            let kubeconfig = if kubeconfig.is_empty() {
+                None
+            } else {
+                Some(kubeconfig)
+            };
+
+            let executor = KubernetesExecutor::new(kubeconfig, Some(namespace)).await?;
+
+            match action {
+                KubernetesAction::List => executor.list_deployments().await?,
+                KubernetesAction::Scale {
+                    deployment,
+                    replicas,
+                } => executor.scale(&deployment, replicas).await?,
+                KubernetesAction::Pods => executor.list_pods().await?,
+            }
         }
     }
 
