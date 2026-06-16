@@ -1,2 +1,2 @@
 mod executor;
-pub use executor::{ExecutorResult, KubernetesExecutor};
+pub use executor::KubernetesExecutor;

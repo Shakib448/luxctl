@@ -4,19 +4,6 @@ use kube::api::{Api, ListParams, Patch, PatchParams};
 use kube::config::{Config, KubeConfigOptions, Kubeconfig};
 use kube::{Client, ResourceExt};
 
-#[derive(Debug)]
-pub struct ExecutorResult {
-    pub exit_code: i32,
-    pub stdout: String,
-    pub stderr: String,
-}
-
-impl ExecutorResult {
-    pub fn success(&self) -> bool {
-        self.exit_code == 0
-    }
-}
-
 pub struct KubernetesExecutor {
     client: Client,
     namespace: Option<String>,
