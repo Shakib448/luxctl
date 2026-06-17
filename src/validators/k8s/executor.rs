@@ -2,7 +2,7 @@ use futures_util::io::AsyncBufReadExt;
 use futures_util::TryStreamExt;
 use k8s_openapi::api::apps::v1::Deployment;
 use k8s_openapi::api::core::v1::{Pod, Service};
-use kube::api::{Api, ListParams, LogParams, Patch, PatchParams};
+use kube::api::{Api, ListParams, LogParams};
 use kube::config::{Config, KubeConfigOptions, Kubeconfig};
 use kube::{Client, ResourceExt};
 
@@ -65,22 +65,6 @@ impl KubernetesExecutor {
         Ok(())
     }
 
-    // Scale a deployment
-    pub async fn scale(&self, name: &str, replicas: i32) -> Result<(), kube::Error> {
-        let deployments = self.api::<Deployment>();
-
-        let patch = serde_json::json!({
-            "spec": { "replicas": replicas }
-        });
-
-        deployments
-            .patch(name, &PatchParams::default(), &Patch::Merge(&patch))
-            .await?;
-
-        println!("Deployment '{}' scaled to {} replicas", name, replicas);
-        Ok(())
-    }
-
     // Get pods log
     pub async fn logs_pod(&self, pod_name: &str, follow: bool) -> Result<(), kube::Error> {
         let pods = self.api::<Pod>();
@@ -106,43 +90,6 @@ impl KubernetesExecutor {
             let logs = pods.logs(pod_name, &LogParams::default()).await?;
             println!("{}", logs);
         }
-
-        Ok(())
-    }
-
-    // Describe a resource
-    pub async fn describe_pod(&self, name: &str) -> Result<(), kube::Error> {
-        let pods = self.api::<Pod>();
-        let pod = pods.get(name).await?;
-
-        println!("Describing pod '{}'...\n", name);
-        let yaml =
-            serde_yaml::to_string(&pod).unwrap_or_else(|e| format!("serialization error: {}", e));
-        println!("{}", yaml);
-
-        Ok(())
-    }
-
-    pub async fn describe_deployment(&self, name: &str) -> Result<(), kube::Error> {
-        let deployments = self.api::<Deployment>();
-        let deployment = deployments.get(name).await?;
-
-        println!("Describing deployment '{}'...\n", name);
-        let yaml = serde_yaml::to_string(&deployment)
-            .unwrap_or_else(|e| format!("serialization error: {}", e));
-        println!("{}", yaml);
-
-        Ok(())
-    }
-
-    pub async fn describe_svc(&self, name: &str) -> Result<(), kube::Error> {
-        let services = self.api::<Service>();
-        let service = services.get(name).await?;
-
-        println!("Describing service '{}'...\n", name);
-        let yaml = serde_yaml::to_string(&service)
-            .unwrap_or_else(|e| format!("serialization error: {}", e));
-        println!("{}", yaml);
 
         Ok(())
     }

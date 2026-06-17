@@ -217,22 +217,6 @@ enum KubernetesAction {
         #[command(subcommand)]
         action: LogsResource,
     },
-
-    /// Get  describe, deployment, svc and pods
-    Describe {
-        #[command(subcommand)]
-        action: DescribeResource,
-    },
-    /// Scale a specific deployment
-    Scale {
-        /// The name of the deployment to scale
-        #[arg(value_name = "DEPLOYMENT")]
-        deployment: String,
-
-        /// the number of replicas to scale to
-        #[arg(short, long)]
-        replicas: i32,
-    },
 }
 
 #[derive(Subcommand)]
@@ -593,10 +577,6 @@ async fn main() -> Result<()> {
             let executor = KubernetesExecutor::new(kubeconfig, Some(namespace)).await?;
 
             match action {
-                KubernetesAction::Scale {
-                    deployment,
-                    replicas,
-                } => executor.scale(&deployment, replicas).await?,
                 KubernetesAction::Get { action } => match action {
                     GetResource::Pods => executor.list_pods().await?,
                     GetResource::Svc => executor.list_svc().await?,
@@ -604,13 +584,6 @@ async fn main() -> Result<()> {
                 },
                 KubernetesAction::Logs { action } => match action {
                     LogsResource::Pods { pod, follow } => executor.logs_pod(&pod, follow).await?,
-                },
-                KubernetesAction::Describe { action } => match action {
-                    DescribeResource::Pod { name } => executor.describe_pod(&name).await?,
-                    DescribeResource::Deployment { name } => {
-                        executor.describe_deployment(&name).await?
-                    }
-                    DescribeResource::Svc { name } => executor.describe_svc(&name).await?,
                 },
             }
         }
