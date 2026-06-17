@@ -153,6 +153,28 @@ enum Commands {
 }
 
 #[derive(Subcommand)]
+enum DescribeResource {
+    /// Describe a pod
+    #[command(visible_aliases = ["po", "p"])]
+    Pod {
+        #[arg(value_name = "NAME")]
+        name: String,
+    },
+    /// Describe a deployment
+    #[command(visible_aliases = ["deploy"])]
+    Deployment {
+        #[arg(value_name = "NAME")]
+        name: String,
+    },
+    /// Describe a service
+    #[command(visible_aliases = ["services", "service"])]
+    Svc {
+        #[arg(value_name = "NAME")]
+        name: String,
+    },
+}
+
+#[derive(Subcommand)]
 enum GetResource {
     /// List all pods
     #[command(visible_aliases = ["po", "p"])]
@@ -196,6 +218,11 @@ enum KubernetesAction {
         action: LogsResource,
     },
 
+    /// Get  describe, deployment, svc and pods
+    Describe {
+        #[command(subcommand)]
+        action: DescribeResource,
+    },
     /// Scale a specific deployment
     Scale {
         /// The name of the deployment to scale
@@ -577,6 +604,13 @@ async fn main() -> Result<()> {
                 },
                 KubernetesAction::Logs { action } => match action {
                     LogsResource::Pods { pod, follow } => executor.logs_pod(&pod, follow).await?,
+                },
+                KubernetesAction::Describe { action } => match action {
+                    DescribeResource::Pod { name } => executor.describe_pod(&name).await?,
+                    DescribeResource::Deployment { name } => {
+                        executor.describe_deployment(&name).await?
+                    }
+                    DescribeResource::Svc { name } => executor.describe_svc(&name).await?,
                 },
             }
         }
