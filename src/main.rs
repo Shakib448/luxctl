@@ -168,11 +168,32 @@ enum GetResource {
 }
 
 #[derive(Subcommand)]
+enum LogsResource {
+    /// Get logs from pods
+    #[command(visible_aliases = ["po", "p"])]
+    Pods {
+        /// Name of the pod
+        #[arg(value_name = "POD")]
+        pod: String,
+
+        /// Follow the log stream (like kubectl -f)
+        #[arg(short, long)]
+        follow: bool,
+    },
+}
+
+#[derive(Subcommand)]
 enum KubernetesAction {
     /// Get all deployment, lists, svc and pods
     Get {
         #[command(subcommand)]
         action: GetResource,
+    },
+
+    /// Get all logs, lists, svc and pods
+    Logs {
+        #[command(subcommand)]
+        action: LogsResource,
     },
 
     /// Scale a specific deployment
@@ -553,6 +574,9 @@ async fn main() -> Result<()> {
                     GetResource::Pods => executor.list_pods().await?,
                     GetResource::Svc => executor.list_svc().await?,
                     GetResource::Deployments => executor.list_deployments().await?,
+                },
+                KubernetesAction::Logs { action } => match action {
+                    LogsResource::Pods { pod, follow } => executor.logs_pod(&pod, follow).await?,
                 },
             }
         }
