@@ -1,5 +1,5 @@
 use k8s_openapi::api::apps::v1::Deployment;
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::core::v1::{Pod, Service};
 use kube::api::{Api, ListParams, Patch, PatchParams};
 use kube::config::{Config, KubeConfigOptions, Kubeconfig};
 use kube::{Client, ResourceExt};
@@ -32,18 +32,33 @@ impl KubernetesExecutor {
     pub async fn list_pods(&self) -> Result<(), kube::Error> {
         let pods = self.api::<Pod>();
         println!("Fetching pods...");
+
         for pod in pods.list(&ListParams::default()).await? {
             println!("{}", pod.name_any());
         }
+
         Ok(())
     }
 
     pub async fn list_deployments(&self) -> Result<(), kube::Error> {
         let deployments = self.api::<Deployment>();
         println!("Fetching deployments...");
+
         for d in deployments.list(&ListParams::default()).await? {
             println!("{}", d.name_any());
         }
+
+        Ok(())
+    }
+
+    pub async fn list_svc(&self) -> Result<(), kube::Error> {
+        let services = self.api::<Service>();
+        println!("Fetching services...");
+
+        for s in services.list(&ListParams::default()).await? {
+            println!("{}", s.name_any());
+        }
+
         Ok(())
     }
 

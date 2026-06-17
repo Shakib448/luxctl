@@ -153,27 +153,18 @@ enum Commands {
 }
 
 #[derive(Subcommand)]
-enum GetResource {
-    /// List all pods
-    #[command(visible_aliases = ["po", "p"])]
-    Pods,
-
-    /// List all services
-    #[command(visible_aliases = ["service"])]
-    Svc,
-
-    /// List all deployments
-    #[command(visible_aliases = ["dep","deploy"])]
-    Deployments,
-}
-
-#[derive(Subcommand)]
 enum KubernetesAction {
+
     /// Get all deployment, lists, svc and pods
-    Get {
-        #[command(subcommand)]
-        action: GetResource,
-    },
+
+Get {
+
+        /// List all pods in the specified namespace
+        #[arg(short = 'p', long)]
+        pods
+    }
+    /// List all deployments in the specified namespace
+    Deployments,
 
     /// Scale a specific deployment
     Scale {
@@ -185,6 +176,7 @@ enum KubernetesAction {
         #[arg(short, long)]
         replicas: i32,
     },
+
 }
 
 #[derive(Subcommand)]
@@ -545,15 +537,13 @@ async fn main() -> Result<()> {
             let executor = KubernetesExecutor::new(kubeconfig, Some(namespace)).await?;
 
             match action {
+                KubernetesAction::Deployments => executor.list_deployments().await?,
                 KubernetesAction::Scale {
                     deployment,
                     replicas,
                 } => executor.scale(&deployment, replicas).await?,
-                KubernetesAction::Get { action } => match action {
-                    GetResource::Pods => executor.list_pods().await?,
-                    GetResource::Svc => executor.list_svc().await?,
-                    GetResource::Deployments => executor.list_deployments().await?,
-                },
+                KubernetesAction::Pods => executor.list_pods().await?,
+                KubernetesAction::Get {..} => todo!(),
             }
         }
     }
