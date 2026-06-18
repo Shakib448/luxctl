@@ -6,6 +6,7 @@ use kube::api::{Api, ListParams, LogParams};
 use kube::config::{Config, KubeConfigOptions, Kubeconfig};
 use kube::{Client, ResourceExt};
 
+#[derive(Clone)]
 pub struct KubernetesExecutor {
     client: Client,
     namespace: Option<String>,
@@ -18,6 +19,17 @@ impl KubernetesExecutor {
     ) -> Result<Self, kube::Error> {
         let client = build_client(kubeconfig_path).await?;
         Ok(Self { client, namespace })
+    }
+
+    pub fn with_namespace(&self, namespace: String) -> Self {
+        Self {
+            client: self.client.clone(),
+            namespace: Some(namespace),
+        }
+    }
+
+    pub fn namespace(&self) -> Option<&String> {
+        self.namespace.as_ref()
     }
 
     fn api<K>(&self) -> Api<K>

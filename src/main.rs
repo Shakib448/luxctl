@@ -2,7 +2,7 @@ use clap::{CommandFactory, Parser, Subcommand, ValueHint};
 use clap_complete::{generate, Shell};
 use color_eyre::eyre::Result;
 
-use luxctl::validators::k8s::KubernetesExecutor;
+use luxctl::validators::k8s::shell;
 use luxctl::{
     api::LighthouseAPIClient, auth::TokenAuthenticator, commands, config::Config, greet,
     message::Message, oops, LIGHTHOUSE_URL, VERSION,
@@ -138,85 +138,7 @@ enum Commands {
 
     /// A ClI tool for managing Kubernetes clusters
     #[command(visible_aliases = ["k8s" , "k"])]
-    Kubernetes {
-        /// Sets the path to the kubeconfig file
-        #[arg(short, long, default_value = "")]
-        kubeconfig: String,
-
-        /// Sets the Kubernetes namespace
-        #[arg(short, long, default_value = "default")]
-        namespace: String,
-
-        #[command(subcommand)]
-        action: KubernetesAction,
-    },
-}
-
-#[derive(Subcommand)]
-enum DescribeResource {
-    /// Describe a pod
-    #[command(visible_aliases = ["po", "p"])]
-    Pod {
-        #[arg(value_name = "NAME")]
-        name: String,
-    },
-    /// Describe a deployment
-    #[command(visible_aliases = ["deploy"])]
-    Deployment {
-        #[arg(value_name = "NAME")]
-        name: String,
-    },
-    /// Describe a service
-    #[command(visible_aliases = ["services", "service"])]
-    Svc {
-        #[arg(value_name = "NAME")]
-        name: String,
-    },
-}
-
-#[derive(Subcommand)]
-enum GetResource {
-    /// List all pods
-    #[command(visible_aliases = ["po", "p"])]
-    Pods,
-
-    /// List all services
-    #[command(visible_aliases = ["service"])]
-    Svc,
-
-    /// List all deployments
-    #[command(visible_aliases = ["dep","deploy"])]
-    Deployments,
-}
-
-#[derive(Subcommand)]
-enum LogsResource {
-    /// Get logs from pods
-    #[command(visible_aliases = ["po", "p"])]
-    Pods {
-        /// Name of the pod
-        #[arg(value_name = "POD")]
-        pod: String,
-
-        /// Follow the log stream (like kubectl -f)
-        #[arg(short, long)]
-        follow: bool,
-    },
-}
-
-#[derive(Subcommand)]
-enum KubernetesAction {
-    /// Get all deployment, lists, svc and pods
-    Get {
-        #[command(subcommand)]
-        action: GetResource,
-    },
-
-    /// Get all logs, lists, svc and pods
-    Logs {
-        #[command(subcommand)]
-        action: LogsResource,
-    },
+    Kubernetes,
 }
 
 #[derive(Subcommand)]
@@ -563,29 +485,8 @@ async fn main() -> Result<()> {
             commands::helpers::run(&name, rows, &measurements, &expected)?;
         }
 
-        Commands::Kubernetes {
-            kubeconfig,
-            namespace,
-            action,
-        } => {
-            let kubeconfig = if kubeconfig.is_empty() {
-                None
-            } else {
-                Some(kubeconfig)
-            };
-
-            let executor = KubernetesExecutor::new(kubeconfig, Some(namespace)).await?;
-
-            match action {
-                KubernetesAction::Get { action } => match action {
-                    GetResource::Pods => executor.list_pods().await?,
-                    GetResource::Svc => executor.list_svc().await?,
-                    GetResource::Deployments => executor.list_deployments().await?,
-                },
-                KubernetesAction::Logs { action } => match action {
-                    LogsResource::Pods { pod, follow } => executor.logs_pod(&pod, follow).await?,
-                },
-            }
+        Commands::Kubernetes => {
+            shell::run_shell().await?;
         }
     }
 
